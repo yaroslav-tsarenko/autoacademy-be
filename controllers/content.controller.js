@@ -5,6 +5,8 @@ const Slider = require("../models/slider.model");
 const { uploadImage } = require("../utils/uploadImage");
 const Review = require("../models/review.model");
 const telegramBot = require("../telegram-bot/telegramBot");
+const MainSection = require("../models/mainSection.model");
+const Instructor = require("../models/instructor.model");
 
 const uploadStory = async (req, res) => {
     try {
@@ -35,6 +37,72 @@ const getStories = async (req, res) => {
     }
 };
 
+const upsertMainSection = async (req, res) => {
+    try {
+        const { title, description, publications, followers, students } = req.body;
+        if (!title || !description) {
+            return res.status(400).json({ message: "Missing fields" });
+        }
+        let mainSection = await MainSection.findOne();
+        if (mainSection) {
+            mainSection.title = title;
+            mainSection.description = description;
+            mainSection.publications = publications ?? mainSection.publications;
+            mainSection.followers = followers ?? mainSection.followers;
+            mainSection.students = students ?? mainSection.students;
+            await mainSection.save();
+        } else {
+            mainSection = new MainSection({ title, description, publications, followers, students });
+            await mainSection.save();
+        }
+        res.status(201).json(mainSection);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to save main section", error: err.message });
+    }
+};
+
+const deleteActual = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Actual.findByIdAndDelete(id);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete actual", error: err.message });
+    }
+};
+
+const getMainSection = async (req, res) => {
+    try {
+        const mainSection = await MainSection.findOne();
+        res.json(mainSection);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to fetch main section", error: err.message });
+    }
+};
+
+const updatePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { text } = req.body;
+        const post = await Post.findById(id);
+        if (!post) return res.status(404).json({ message: "Post not found" });
+        post.text = text;
+        await post.save();
+        res.json(post);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to update post", error: err.message });
+    }
+};
+
+const deletePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Post.findByIdAndDelete(id);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete post", error: err.message });
+    }
+};
 
 const createActual = async (req, res) => {
     try {
@@ -48,6 +116,56 @@ const createActual = async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: "Failed to create actual", error: err.message });
     }
+};
+
+const getInstructors = async (req, res) => {
+    const instructors = await Instructor.find();
+    res.json(instructors);
+};
+
+const createInstructor = async (req, res) => {
+    try {
+        const { fullName, description, characteristics } = req.body;
+        let photoUrl = "";
+        if (req.file) {
+            const timestamp = Date.now();
+            const originalName = req.file.originalname.replace(/\s+/g, "_");
+            const fileName = `avtoacademy/instructors/${timestamp}_${originalName}`;
+            photoUrl = await uploadImage(req.file, fileName);
+        }
+        const instructor = await Instructor.create({
+            fullName,
+            photo: photoUrl,
+            description,
+            characteristics: JSON.parse(characteristics),
+        });
+        res.json(instructor);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to create instructor", error: err.message });
+    }
+};
+
+const updateInstructor = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fullName, description, characteristics } = req.body;
+        let update = { fullName, description, characteristics: JSON.parse(characteristics) };
+        if (req.file) {
+            const timestamp = Date.now();
+            const originalName = req.file.originalname.replace(/\s+/g, "_");
+            const fileName = `avtoacademy/instructors/${timestamp}_${originalName}`;
+            update.photo = await uploadImage(req.file, fileName);
+        }
+        const instructor = await Instructor.findByIdAndUpdate(id, update, { new: true });
+        res.json(instructor);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to update instructor", error: err.message });
+    }
+};
+
+const deleteInstructor = async (req, res) => {
+    await Instructor.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
 };
 
 const getActuals = async (req, res) => {
@@ -216,15 +334,34 @@ const getReviews = async (_req, res) => {
     }
 };
 
-
 const sendTelegramMessage = async (req, res) => {
     try {
-        const { name, phone, comment } = req.body;
+        const {
+            name, phone, comment,
+            ip, city, country, region, loc, org, timezone,
+            userAgent, browser, browserVersion, os, osVersion, device
+        } = req.body;
+
         const message =
             `📝 Новий запис\n` +
+            `----------------------\n` +
             `👤 Ім'я: ${name}\n` +
-            `📞 Телефон: ${phone}\n` +
-            (comment ? `💬 Коментар: ${comment}\n` : "");
+            `📞 Контакт: ${phone}\n` +
+            (comment ? `💬 Коментар: ${comment}\n` : "") +
+            `----------------------\n` +
+            `Додаткова інформація:\n` +
+            `🌍 IP: ${ip}\n` +
+            `🏙️ Місто: ${city}\n` +
+            `📋 Регіон: ${region}\n` +
+            `🇺🇦 Країна: ${country}\n` +
+            `🕑 Часовий пояс: ${timezone}\n` +
+            `🏢 Організація: ${org}\n` +
+            `📍 Локація: ${loc}\n` +
+            `🖥️ Пристрій: ${device}\n` +
+            `🧭 ОС: ${os} ${osVersion}\n` +
+            `🌐 Браузер: ${browser} ${browserVersion}\n` +
+            `📝 User Agent: ${userAgent}\n`;
+
         await telegramBot.sendMessageToChannel(message, { parse_mode: "Markdown" });
         res.json({ ok: true });
     } catch (err) {
@@ -232,7 +369,41 @@ const sendTelegramMessage = async (req, res) => {
     }
 };
 
-module.exports = { sendTelegramMessage };
+const replaceSliderImage = async (req, res) => {
+    try {
+        const idx = parseInt(req.params.idx, 10);
+        if (isNaN(idx) || !req.file) return res.status(400).json({ message: "Invalid index or no file" });
+
+        const timestamp = Date.now();
+        const originalName = req.file.originalname.replace(/\s+/g, "_");
+        const fileName = `avtoacademy/slider/${timestamp}_${originalName}`;
+        const fileUrl = await uploadImage(req.file, fileName);
+
+        let slider = await Slider.findOne();
+        if (!slider || !slider.images[idx]) return res.status(404).json({ message: "Image not found" });
+
+        slider.images[idx] = fileUrl;
+        await slider.save();
+        res.status(200).json(slider);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to replace image", error: err.message });
+    }
+};
+
+const deleteSliderImage = async (req, res) => {
+    try {
+        const idx = parseInt(req.params.idx, 10);
+        let slider = await Slider.findOne();
+        if (!slider || !slider.images[idx]) return res.status(404).json({ message: "Image not found" });
+
+        slider.images.splice(idx, 1);
+        await slider.save();
+        res.status(200).json(slider);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete image", error: err.message });
+    }
+};
+
 module.exports = {
     uploadStory,
     getStories,
@@ -247,5 +418,17 @@ module.exports = {
     uploadSliderImageSingle,
     createReview,
     getReviews,
-    sendTelegramMessage
+    sendTelegramMessage,
+    getMainSection,
+    upsertMainSection,
+    deleteActual,
+    updatePost,
+    deletePost,
+    replaceSliderImage,
+    deleteSliderImage,
+    createInstructor,
+    getInstructors,
+    updateInstructor,
+    deleteInstructor
+
 };
