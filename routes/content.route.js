@@ -14,6 +14,7 @@ const uploadSingle = multer({ storage }).single("file");
 
 router.post("/stories/upload", upload.single("file"), contentController.uploadStory);
 router.get("/stories/get-all", contentController.getStories);
+router.delete("/stories/:id", contentController.deleteStory);
 router.post("/actuals/create", contentController.createActual);
 router.get("/actuals/get-all", contentController.getActuals);
 router.post("/actuals/upload-file", upload.single("file"), contentController.uploadActualFile);
@@ -37,5 +38,13 @@ router.post("/instructors/create", upload.single("photo"), contentController.cre
 router.get("/instructors/get-all", contentController.getInstructors);
 router.put("/instructors/:id", upload.single("photo"), contentController.updateInstructor);
 router.delete("/instructors/:id", contentController.deleteInstructor);
+router.post("/faqs/create", contentController.createFaq);
+router.get("/faqs/get-all", contentController.getFaqs);
+router.put("/faqs/:id", contentController.updateFaq);
+router.delete("/faqs/:id", contentController.deleteFaq);
+router.get("/tariffs", contentController.getTariffs);
+router.post("/tariffs/create", contentController.createTariff);
+router.put("/tariffs/:id", contentController.updateTariff);
+router.delete("/tariffs/:id", contentController.deleteTariff);
 
 module.exports = router;

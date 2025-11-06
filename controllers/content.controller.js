@@ -7,6 +7,8 @@ const Review = require("../models/review.model");
 const telegramBot = require("../telegram-bot/telegramBot");
 const MainSection = require("../models/mainSection.model");
 const Instructor = require("../models/instructor.model");
+const Faq = require("../models/faq.model");
+const Tariff = require("../models/tariff.model");
 
 const uploadStory = async (req, res) => {
     try {
@@ -25,6 +27,68 @@ const uploadStory = async (req, res) => {
         res.status(201).json(story);
     } catch (err) {
         res.status(500).json({ message: "Upload failed", error: err.message });
+    }
+};
+
+const createTariff = async (req, res) => {
+    try {
+        const { title, price, features = [], buttonText = "Записатися", popular = false } = req.body;
+        if (!title || !price) return res.status(400).json({ message: "Missing fields" });
+        const tariff = new Tariff({ title, price, features, buttonText, popular });
+        await tariff.save();
+        res.status(201).json(tariff);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to create tariff", error: err.message });
+    }
+};
+
+const getTariffs = async (_req, res) => {
+    try {
+        const tariffs = await Tariff.find().sort({ createdAt: -1 });
+        res.json(tariffs);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to fetch tariffs", error: err.message });
+    }
+};
+
+const updateTariff = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, price, features, buttonText, popular } = req.body;
+        const tariff = await Tariff.findByIdAndUpdate(
+            id,
+            { title, price, features, buttonText, popular },
+            { new: true }
+        );
+        if (!tariff) return res.status(404).json({ message: "Tariff not found" });
+        res.json(tariff);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to update tariff", error: err.message });
+    }
+};
+
+const deleteTariff = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Tariff.findByIdAndDelete(id);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete tariff", error: err.message });
+    }
+};
+
+const deleteStory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ message: "Story ID is required" });
+
+        const story = await Story.findById(id);
+        if (!story) return res.status(404).json({ message: "Story not found" });
+
+        await Story.findByIdAndDelete(id);
+        res.json({ ok: true, message: "Story deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete story", error: err.message });
     }
 };
 
@@ -404,6 +468,55 @@ const deleteSliderImage = async (req, res) => {
     }
 };
 
+const createFaq = async (req, res) => {
+    try {
+        const { question, answer } = req.body;
+        if (!question || !answer) {
+            return res.status(400).json({ message: "Missing fields" });
+        }
+        const faq = new Faq({ question, answer });
+        await faq.save();
+        res.status(201).json(faq);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to create faq", error: err.message });
+    }
+};
+
+const getFaqs = async (_req, res) => {
+    try {
+        const faqs = await Faq.find().sort({ createdAt: -1 });
+        res.json(faqs);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to fetch faqs", error: err.message });
+    }
+};
+
+const updateFaq = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { question, answer } = req.body;
+        const faq = await Faq.findByIdAndUpdate(
+            id,
+            { question, answer },
+            { new: true }
+        );
+        if (!faq) return res.status(404).json({ message: "FAQ not found" });
+        res.json(faq);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to update faq", error: err.message });
+    }
+};
+
+const deleteFaq = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Faq.findByIdAndDelete(id);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ message: "Failed to delete faq", error: err.message });
+    }
+};
+
 module.exports = {
     uploadStory,
     getStories,
@@ -429,6 +542,14 @@ module.exports = {
     createInstructor,
     getInstructors,
     updateInstructor,
-    deleteInstructor
-
+    deleteInstructor,
+    deleteStory,
+    createFaq,
+    getFaqs,
+    updateFaq,
+    deleteFaq,
+    createTariff,
+    getTariffs,
+    updateTariff,
+    deleteTariff,
 };

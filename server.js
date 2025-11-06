@@ -6,6 +6,7 @@ const ora = require("ora").default; // Fix: use .default for ESM export
 const chalk = require("chalk").default;
 const contentRoutes = require("./routes/content.route");
 const connectDB = require("./utils/connect");
+const { cleanExpiredStories } = require("./utils/cleanExpiredStories.js");
 
 const app = express();
 
@@ -29,7 +30,9 @@ connectDB(process.env.MONGODB_URI)
     .then(() => {
         spinner.succeed(chalk.green.bold("✅ MongoDB connected successfully!"));
         app.listen(PORT, () => {
+            cleanExpiredStories();
             console.log(chalk.cyan.bold(`🚀 API running on http://localhost:${PORT}`));
+            console.log("🧭 Story cleanup cron initialized (runs every 1h).");
         });
     })
     .catch((err) => {
